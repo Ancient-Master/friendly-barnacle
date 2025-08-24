@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<title>Contract Autofarm Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  body { background:#181820; color:#f0f0f0; font-family:'Roboto',sans-serif; margin:0; padding:20px; }
+  h1 { color:#ff9900; text-align:center; margin-bottom:25px; font-size:2em; }
+  .container { display:grid; grid-template-columns:1fr 1fr; gap:25px; max-width:1200px; margin:auto; }
+  .card { background:#222233; padding:25px; border-radius:14px; box-shadow:0 6px 18px rgba(0,0,0,0.5); }
+  .card h2 { margin-top:0; font-size:1.4em; font-weight:700; color:#ffcc66; border-bottom:2px solid #333; padding-bottom:10px; margin-bottom:15px; }
+  form label { display:block; margin:14px 0 6px 0; font-size:0.9em; font-weight:500; color:#bbb; }
+  input[type=text], select {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    background: #2b2b3d;
+    color: #f0f0f0;
+    font-size: 1em;
+    box-sizing: border-box; /* <-- sorgt dafür, dass padding/border mitgerechnet werden */
+  }
+  input[type=text]:focus, select:focus {
+    outline:none;
+    border-color:#ff9900;
+    box-shadow:0 0 10px rgba(255,153,0,0.6);
+    background:#313145;
+  }
+  input[type=checkbox] { accent-color:#ff9900; transform:scale(1.2); margin-right:8px; cursor:pointer; }
+  .button-row { margin-top:15px; display:flex; gap:12px; }
+  button { flex:1; padding:12px 16px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.25s; }
+  #saveBtn { background:#4CAF50; color:white; } #saveBtn:hover { background:#45a049; }
+  #pauseBtn { background:#ffa500; color:#222; } #pauseBtn:hover { background:#e69500; }
+  #stopBtn { background:#f44336; color:white; } #stopBtn:hover { background:#d32f2f; }
+  .status-item { margin:10px 0; font-size:1.05em; padding:8px; border-radius:6px; background:#2f2f40; }
+  .fullwidth { grid-column:1 / span 2; }
+</style>
+</head>
+<body>
+  <h1>⚡ Contract Autofarm Dashboard ⚡</h1>
+
+  <div class="container">
+    <!-- Config Panel -->
+    <div class="card">
+      <h2>⚙️ Config</h2>
+      <form id="configForm">
+        <label>Target Name</label>
+        <input type="text" name="target_name" value="{{ config.target_name }}">
+        
+        <label>Server</label>
+        <select name="server">
+          <option value="Normal" {% if config.server == "Normal" %}selected{% endif %}>Normal</option>
+          <option value="VC" {% if config.server == "VC" %}selected{% endif %}>VC</option>
+          <option value="Pro" {% if config.server == "Pro" %}selected{% endif %}>Pro</option>
+        </select>
+        
+        <label>Job ID</label>
+        <input type="text" name="job_id" value="{{ config.job_id }}">
+        
+        <label><input type="checkbox" name="send_webhook" {% if config.send_webhook %}checked{% endif %}> Webhook senden</label>
+        
+        <label>Mention Choice</label>
+        <input type="text" name="mention_choice" value="{{ config.mention_choice }}">
+        
+        <label><input type="checkbox" name="enable_shutdown" {% if config.enable_shutdown %}checked{% endif %}> Shutdown erlauben</label>
+        
+        <label>Monitore (z. B. 1,2)</label>
+        <input type="text" name="monitors" value="{{ config.monitors | join(',') }}">
+        
+        <button type="button" id="saveBtn">💾 Speichern</button>
+      </form>
+    </div>
+
+    <!-- Status Panel -->
+    <div class="card">
+      <h2>📊 Status</h2>
+      <div id="status">
+        <p class="status-item">Contracts Completed: {{ status.contracts_completed }}</p>
+        <p class="status-item">Uptime: {{ status.uptime }}</p>
+        <p class="status-item">Contracts/min: {{ status.contracts_per_min }}</p>
+        <p class="status-item">Status: {{ "Läuft" if status.script_running else "Gestoppt" }}</p>
+        <p class="status-item">Pausiert: {{ "Ja" if status.paused else "Nein" }}</p>
+      </div>
+      <div class="button-row">
+        <button id="pauseBtn">⏸ Pause / ▶ Fortsetzen</button>
+        <button id="stopBtn">⛔ Stop</button>
+      </div>
+    </div>
+
+    <!-- Livestreams -->
+    <div class="card fullwidth" style="text-align:center; margin-top:20px;">
+      <h2>📺 Live Streams</h2>
+      <div id="streams"></div>
+    </div>
+  </div>
+
+<script>
+// Status-Stream
+const eventSource = new EventSource("/status_stream");
+eventSource.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  document.getElementById('status').innerHTML = `
+    <p class="status-item">Contracts Completed: ${data.contracts_completed}</p>
+    <p class="status-item">Uptime: ${data.uptime}</p>
+    <p class="status-item">Contracts/min: ${data.contracts_per_min.toFixed(2)}</p>
+    <p class="status-item">Status: ${data.script_running ? "Läuft" : "Gestoppt"}</p>
+    <p class="status-item">Pausiert: ${data.paused ? "Ja" : "Nein"}</p>
+  `;
+};
+
+// Config speichern
+document.getElementById('saveBtn').onclick = async function() {
+  const formData = new FormData(document.getElementById('configForm'));
+  const jsonData = {};
+  formData.forEach((value, key) => {
+    if (key === "send_webhook" || key === "enable_shutdown") {
+      jsonData[key] = (value === "on");
+    } else {
+      jsonData[key] = value;
+    }
+  });
+
+  const response = await fetch('/update_config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(jsonData)
+  });
+  if (response.ok) {
+    alert("✅ Config gespeichert!");
+    loadMonitors();
+  }
+};
+
+// Buttons
+document.getElementById('pauseBtn').onclick = async () => {
+  await fetch('/pause_toggle', {method: 'POST'});
+};
+document.getElementById('stopBtn').onclick = async () => {
+  if (confirm("⚠️ Willst du wirklich das gesamte Script beenden?")) {
+    if (confirm("❗ Letzte Warnung: Alles wird gestoppt und beendet. Fortfahren?")) {
+      await fetch('/stop_script', {method: 'POST'});
+    }
+  }
+};
+
+// Streams laden
+async function loadMonitors() {
+  const res = await fetch("/monitors");
+  const data = await res.json();
+  const streamsDiv = document.getElementById("streams");
+  streamsDiv.innerHTML = "";
+
+  data.monitors.forEach(id => {
+    const container = document.createElement("div");
+    container.style.margin = "20px 0";
+    container.innerHTML = `
+      <h3>Monitor ${id}</h3>
+      <img src="/video_feed/${id}" style="max-width:100%; border-radius:10px; border:2px solid #333;">
+    `;
+    streamsDiv.appendChild(container);
+  });
+}
+loadMonitors();
+</script>
+</body>
+</html>

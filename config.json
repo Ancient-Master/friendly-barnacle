@@ -1,0 +1,10 @@
+{
+    "target_name": "Noob1231233123",
+    "server": "VC",
+    "job_id": "abathurius",
+    "mention_choice": "asdasd",
+    "enable_shutdown": true,
+    "monitors": [
+        1
+    ]
+}
