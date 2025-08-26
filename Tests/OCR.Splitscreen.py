@@ -62,7 +62,7 @@ def enum_windows():
         if win32gui.IsWindowVisible(hwnd):
             title = win32gui.GetWindowText(hwnd)
             class_name = win32gui.GetClassName(hwnd)
-            if "Roblox" in title:
+            if "Roblox" == title:
                 hwnds.append((hwnd, title, class_name))
     win32gui.EnumWindows(callback, None)
     return hwnds
