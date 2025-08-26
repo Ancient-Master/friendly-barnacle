@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
-<title>Contract Autofarm Dashboard</title>
+<title>Vertrag-Autofarm Bedienfeld</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
@@ -34,37 +34,20 @@
     transform: scale(1.02);
   }
 
-  /* Buttons */
+  /* Knöpfle */
   .button-row { margin-top:15px; display:flex; gap:12px; }
   button {
     flex:1; padding:12px 16px; border:none; border-radius:8px;
     font-size:1em; font-weight:600; cursor:pointer; transition:0.25s;
     display:flex; align-items:center; justify-content:center;
   }
-
-  /* Standard Hover-Animation */
-  button:hover { transform: scale(1.05); }
-
-  /* Speichern (Grün) */
+  button:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(255,153,0,0.9); }
   #saveBtn { background:#4CAF50; color:white; }
-  #saveBtn:hover {
-    background:#45a049;
-    box-shadow: 0 0 15px rgba(76, 175, 80, 0.9);
-  }
-
-  /* Pause (Orange) */
+  #saveBtn:hover { background:#45a049; }
   #pauseBtn { background:#ffa500; color:#222; }
-  #pauseBtn:hover {
-    background:#e69500;
-    box-shadow: 0 0 15px rgba(255, 165, 0, 0.9);
-  }
-
-  /* Stop (Rot) */
+  #pauseBtn:hover { background:#e69500; }
   #stopBtn { background:#f44336; color:white; }
-  #stopBtn:hover {
-    background:#d32f2f;
-    box-shadow: 0 0 15px rgba(244, 67, 54, 0.9);
-  }
+  #stopBtn:hover { background:#d32f2f; }
 
   /* Emoji Glow */
   button .btn-icon {
@@ -89,7 +72,7 @@
   .config-section:hover { box-shadow: 0 0 12px rgba(255,153,0,0.3); }
   .config-section h3 { margin-top: 0; margin-bottom: 12px; font-size: 1.1em; color: #ffcc66; border-bottom: 1px solid #444; padding-bottom: 6px; }
 
-  /* Checkboxen */
+  /* Checkboxe */
   .checkbox-wrap { display: flex; align-items: center; margin: 10px 0; cursor: pointer; user-select: none; gap: 8px; }
   .checkbox-wrap input[type="checkbox"] {
     appearance: none; -webkit-appearance: none;
@@ -114,19 +97,19 @@
 </style>
 </head>
 <body>
-  <h1>⚡ Contract Autofarm Dashboard ⚡</h1>
+  <h1>⚡ Vertrag-Autofarm Bedienfeld ⚡</h1>
   <div id="notification" style="max-width:1200px; margin:10px auto; text-align:center; padding:12px; border-radius:8px; display:none; font-weight:600; font-size:1.1em;"></div>
 
   <div class="container">
     <!-- Config Panel -->
     <div class="card">
-      <h2>⚙️ Config</h2>
+      <h2>⚙️ Ei’stellunge</h2>
       <form id="configForm" class="config-grid">
 
         <!-- Allgemein -->
         <div class="config-section">
-          <h3>Allgemein</h3>
-          <label>Target Name</label>
+          <h3>Allgemeins</h3>
+          <label>Ziel-Name</label>
           <input type="text" name="target_name" value="{{ config.target_name }}">
 
           <label>Team</label>
@@ -136,40 +119,40 @@
             {% endfor %}
           </select>
 
-          <label>Server</label>
+          <label>Serverle</label>
           <select name="server">
             <option value="Normal" {% if config.server == "Normal" %}selected{% endif %}>Normal</option>
             <option value="VC" {% if config.server == "VC" %}selected{% endif %}>VC</option>
             <option value="Pro" {% if config.server == "Pro" %}selected{% endif %}>Pro</option>
           </select>
 
-          <label>Job ID</label>
+          <label>Job-ID</label>
           <input type="text" name="job_id" value="{{ config.job_id }}">
         </div>
 
         <!-- Benachrichtigung -->
         <div class="config-section">
-          <h3>Benachrichtigung</h3>
+          <h3>Benachrichtigunga</h3>
           <div class="checkbox-wrap">
             <input type="checkbox" name="send_webhook" {% if config.send_webhook %}checked{% endif %}>
-            <label>Webhook senden</label>
+            <label>Webhook schicka</label>
           </div>
-          <label>Mention Choice</label>
+          <label>Mention Auswahl</label>
           <input type="text" name="mention_choice" value="{{ config.mention_choice }}">
         </div>
 
         <!-- Optionen -->
         <div class="config-section">
-          <h3>Optionen</h3>
+          <h3>Optiona</h3>
           <div class="checkbox-wrap">
             <input type="checkbox" name="enable_shutdown" {% if config.enable_shutdown %}checked{% endif %}>
-            <label>Shutdown erlauben</label>
+            <label>Abschalta erlauba</label>
           </div>
           <label>Monitore (z. B. 1,2)</label>
           <input type="text" name="monitors" value="{{ config.monitors | join(',') }}">
         </div>
 
-        <button type="button" id="saveBtn"><span class="btn-icon">💾</span> Speichern</button>
+        <button type="button" id="saveBtn"><span class="btn-icon">💾</span> Speichera</button>
       </form>
     </div>
 
@@ -177,26 +160,27 @@
     <div class="card">
       <h2>📊 Status</h2>
       <div id="status">
-        <p class="status-item">Contracts Completed: {{ status.contracts_completed }}</p>
-        <p class="status-item">Uptime: {{ status.uptime }}</p>
-        <p class="status-item">Contracts/min: {{ status.contracts_per_min }}</p>
-        <p class="status-item">Status: {{ "Läuft" if status.script_running else "Gestoppt" }}</p>
-        <p class="status-item">Pausiert: {{ "Ja" if status.paused else "Nein" }}</p>
+        <p class="status-item">Fertige Verträg: {{ status.contracts_completed }}</p>
+        <p class="status-item">Laufzeit: {{ status.uptime }}</p>
+        <p class="status-item">Verträg pro Minut: {{ status.contracts_per_min }}</p>
+        <p class="status-item">Status: {{ "Lauft" if status.script_running else "Gschtoppt" }}</p>
+        <p class="status-item">Pausiert: {{ "Jo" if status.paused else "Nai" }}</p>
       </div>
       <div class="button-row">
-        <button id="pauseBtn"><span class="btn-icon">⏸</span> Pause / ▶ Fortsetzen</button>
-        <button id="stopBtn"><span class="btn-icon">⛔</span> Stop</button>
+        <button id="pauseBtn"><span class="btn-icon">⏸</span> Pause / ▶ Weiter</button>
+        <button id="stopBtn"><span class="btn-icon">⛔</span> Stoppa</button>
       </div>
     </div>
 
     <!-- Livestreams -->
     <div class="card fullwidth" style="text-align:center; margin-top:20px;">
-      <h2>📺 Live Streams</h2>
+      <h2>📺 Live-Bilder</h2>
       <div id="streams"></div>
     </div>
   </div>
 
 <script>
+// Meldung uf Schwäbisch
 function showNotification(message, type="success") {
   const notification = document.getElementById("notification");
   notification.textContent = message;
@@ -206,20 +190,20 @@ function showNotification(message, type="success") {
   setTimeout(() => { notification.style.display = "none"; }, 4000);
 }
 
-// Status-Stream
+// Status-Live
 const eventSource = new EventSource("/status_stream");
 eventSource.onmessage = function(event) {
   const data = JSON.parse(event.data);
   document.getElementById('status').innerHTML = `
-    <p class="status-item">Contracts Completed: ${data.contracts_completed}</p>
-    <p class="status-item">Uptime: ${data.uptime}</p>
-    <p class="status-item">Contracts/min: ${data.contracts_per_min.toFixed(2)}</p>
-    <p class="status-item">Status: ${data.script_running ? "Läuft" : "Gestoppt"}</p>
-    <p class="status-item">Pausiert: ${data.paused ? "Ja" : "Nein"}</p>
+    <p class="status-item">Fertige Verträg: ${data.contracts_completed}</p>
+    <p class="status-item">Laufzeit: ${data.uptime}</p>
+    <p class="status-item">Verträg pro Minut: ${data.contracts_per_min.toFixed(2)}</p>
+    <p class="status-item">Status: ${data.script_running ? "Lauft" : "Gschtoppt"}</p>
+    <p class="status-item">Pausiert: ${data.paused ? "Jo" : "Nai"}</p>
   `;
 };
 
-// Config speichern
+// Speichera
 document.getElementById('saveBtn').onclick = async function() {
   const formData = new FormData(document.getElementById('configForm'));
   const jsonData = {};
@@ -239,31 +223,31 @@ document.getElementById('saveBtn').onclick = async function() {
     });
     const data = await response.json();
     if (data.success) {
-      showNotification(data.message, "success");
+      showNotification("Gspeichert!", "success");
       loadMonitors();
     } else {
       showNotification(data.error, "error");
     }
   } catch (err) {
-    showNotification(`❌ Fehler: ${err.message}`, "error");
+    showNotification(`❌ Feler: ${err.message}`, "error");
   }
 };
 
-// Pause Button
+// Pause / Weiter
 document.getElementById('pauseBtn').onclick = async () => {
   const res = await fetch('/pause_toggle', {method: 'POST'});
   const data = await res.json();
   if (data.success) {
-    showNotification(`Pausiert: ${data.paused ? "Ja" : "Nein"}`, "success");
+    showNotification(`Pausiert: ${data.paused ? "Jo" : "Nai"}`, "success");
   } else {
     showNotification(data.error, "error");
   }
 };
 
-// Stop Button
+// Stoppa
 document.getElementById('stopBtn').onclick = async () => {
-  if (confirm("⚠️ Willst du wirklich das gesamte Script beenden?")) {
-    if (confirm("❗ Letzte Warnung: Alles wird gestoppt und beendet. Fortfahren?")) {
+  if (confirm("⚠️ Bisch sicher, willsch alles stoppa?")) {
+    if (confirm("❗ Letzti Warnung, oida!")) {
       const res = await fetch('/stop_script', {method: 'POST'});
       const data = await res.json();
       if (!data.success) {
@@ -273,7 +257,7 @@ document.getElementById('stopBtn').onclick = async () => {
   }
 };
 
-// Streams laden
+// Monitore lade
 async function loadMonitors() {
   const res = await fetch("/monitors");
   const data = await res.json();
