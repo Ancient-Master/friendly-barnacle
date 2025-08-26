@@ -105,7 +105,7 @@ def find_patient(hwnd, template_filename="patient_template.png"):
         search_with_scales(np.linspace(0.3, 2.0, 25))
 
     print(f"🔍 Best Match: {best_val:.3f} @ scale {best_scale:.2f}")
-    if best_val < 0.4:
+    if best_val < 0.6:
         print("❌ Patient nicht gefunden")
         return None
 
