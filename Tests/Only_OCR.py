@@ -97,10 +97,10 @@ def find_patient(hwnd, template_filename="patient_template.png"):
                 best_val, best_loc, th, tw, best_scale = max_val, max_loc, rh, rw, scale
 
     # 🟢 Schnelle Suche
-    search_with_scales(np.linspace(0.5, 1.5, 15))
+    search_with_scales(np.linspace(0.5, 1.5, 5))
 
     # 🔴 Fallback: große Range nur wenn nötig
-    if best_val < 0.4:
+    if best_val < 0.6:
         print("⚠️ Schnelle Suche fehlgeschlagen → Fallback-Vollsuche...")
         search_with_scales(np.linspace(0.3, 2.0, 25))
 
