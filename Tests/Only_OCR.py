@@ -69,6 +69,7 @@ def find_patient(hwnd, template_filename="patient_template.png"):
     img, offset = screenshot_hwnd(hwnd)
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
+    # Template laden
     template = cv2.imread(template_path, cv2.IMREAD_UNCHANGED)
     if template is None:
         print(f"❌ Template konnte nicht geladen werden: {template_path}")
@@ -79,37 +80,29 @@ def find_patient(hwnd, template_filename="patient_template.png"):
     elif len(template.shape) == 3:
         template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
-    best_val, best_loc, th, tw, best_scale = 0, None, 0, 0, 1.0
+    # Fenstergröße holen
+    rect = win32gui.GetWindowRect(hwnd)
+    win_w, win_h = rect[2] - rect[0], rect[3] - rect[1]
 
-    def search_with_scales(scales):
-        nonlocal best_val, best_loc, th, tw, best_scale
-        for scale in scales:
-            resized = cv2.resize(template, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-            rh, rw = resized.shape[:2]
+    # Dein Referenz-Screenshot war in 2160p Höhe → Skalierungsfaktor berechnen
+    ref_height = 2160
+    scale_factor = win_h / ref_height
+    print(f"📐 Fensterhöhe={win_h}, Scale={scale_factor:.2f}")
 
-            if rh > img_gray.shape[0] or rw > img_gray.shape[1]:
-                continue
+    # Template skalieren
+    template_scaled = cv2.resize(template, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
+    th, tw = template_scaled.shape[:2]
 
-            res = cv2.matchTemplate(img_gray, resized, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    # Template Matching
+    res = cv2.matchTemplate(img_gray, template_scaled, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(res)
 
-            if max_val > best_val:
-                best_val, best_loc, th, tw, best_scale = max_val, max_loc, rh, rw, scale
-
-    # 🟢 Schnelle Suche
-    search_with_scales(np.linspace(0.5, 1.5, 5))
-
-    # 🔴 Fallback: große Range nur wenn nötig
-    if best_val < 0.6:
-        print("⚠️ Schnelle Suche fehlgeschlagen → Fallback-Vollsuche...")
-        search_with_scales(np.linspace(0.3, 2.0, 25))
-
-    print(f"🔍 Best Match: {best_val:.3f} @ scale {best_scale:.2f}")
-    if best_val < 0.6:
+    print(f"🔍 Match Score: {max_val:.3f}")
+    if max_val < 0.4:
         print("❌ Patient nicht gefunden")
         return None
 
-    top_left = best_loc
+    top_left = max_loc
     bottom_right = (top_left[0] + tw, top_left[1] + th)
 
     # Debug speichern
