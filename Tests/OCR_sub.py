@@ -137,7 +137,7 @@ def main():
     patient_btn = find_template(hwnd, "patient_template.png", label="Patient")
     if patient_btn:
         send_input_click(*patient_btn)
-        time.sleep(1.5)  # Warte bis Subteam-Auswahl erscheint
+        time.sleep(0.5)  # Warte bis Subteam-Auswahl erscheint
 
         # Schritt 2: Gewünschtes Subteam
                 # Schritt 2: Gewünschtes Subteam wiederholt suchen
