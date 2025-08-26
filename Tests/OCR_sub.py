@@ -8,7 +8,7 @@ import ctypes
 import keyboard
 
 # ---------------- Einstellungen ----------------
-DESIRED_SUBTEAM = "Brute"
+DESIRED_SUBTEAM = "Historic"
 # mögliche Werte: "Patient", "Psychotic", "Psychosomatic", "Brute", "Historic"
 
 SUBTEAM_TEMPLATES = {
@@ -137,7 +137,7 @@ def main():
     patient_btn = find_template(hwnd, "patient_template.png", label="Patient")
     if patient_btn:
         send_input_click(*patient_btn)
-        time.sleep(0.5)  # Warte bis Subteam-Auswahl erscheint
+        time.sleep(0.7)  # Warte bis Subteam-Auswahl erscheint
 
         # Schritt 2: Gewünschtes Subteam
                 # Schritt 2: Gewünschtes Subteam wiederholt suchen

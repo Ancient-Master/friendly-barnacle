@@ -34,7 +34,14 @@ threading.Thread(target=fake_bot, daemon=True).start()
 # --- MJPEG Stream Generator für einen Monitor
 def generate_frames(monitor_index=1):
     sct = mss.mss()
-    monitor = sct.monitors[monitor_index]
+
+    if monitor_index == 0:
+        # 0 = Ganzer Desktop (alle Monitore zusammen)
+        monitor = sct.monitors[0]
+    else:
+        # Normale Monitorwahl
+        monitor = sct.monitors[monitor_index]
+
     while True:
         screenshot = np.array(sct.grab(monitor))
         frame = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
@@ -65,12 +72,21 @@ def index():
 def update_config():
     new_config = request.json
 
-    # Monitore als Liste verarbeiten
     if "monitors" in new_config:
-        if isinstance(new_config["monitors"], list):
-            new_config["monitors"] = [int(x) for x in new_config["monitors"] if isinstance(x, int) or str(x).isdigit()]
+        monitors_raw = new_config["monitors"]
+
+        if isinstance(monitors_raw, str):  # Eingabe z.B. "1,2" oder "0"
+            monitors_list = [x.strip() for x in monitors_raw.split(",") if x.strip() != ""]
+            if not monitors_list:  # Leer → keine Monitore
+                new_config["monitors"] = []
+            elif monitors_list == ["0"]:  # Nur 0 → Desktop
+                new_config["monitors"] = [0]
+            else:  # Normale Monitore
+                new_config["monitors"] = [int(x) for x in monitors_list if x.isdigit()]
+        elif isinstance(monitors_raw, list):
+            new_config["monitors"] = [int(x) for x in monitors_raw if isinstance(x, int) or str(x).isdigit()]
         else:
-            new_config["monitors"] = [1]
+            new_config["monitors"] = []
 
     save_config(new_config)
     return jsonify({"message": "Config gespeichert", "config": new_config})

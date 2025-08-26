@@ -150,7 +150,7 @@ def find_patient(hwnd, template_filename="patient_template.png"):
             best_val, best_loc, th, tw, best_scale = max_val, max_loc, rh, rw, scale
 
     print(f"🔍 Best Match: {best_val:.3f} @ scale {best_scale:.2f}")
-    if best_val < 0.4:
+    if best_val < 0.6:
         print("❌ Patient nicht gefunden")
         return None
 
