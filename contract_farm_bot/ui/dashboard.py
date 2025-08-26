@@ -4,9 +4,7 @@ import json, time, threading, sys
 import mss
 import cv2
 import numpy as np
-import sys
 import os
-
 
 app = Flask(__name__, template_folder="templates")
 
@@ -18,7 +16,9 @@ status_data = {
     "paused": False
 }
 
-# --- Fake Bot zum Testen (Demo!)
+TEAM_OPTIONS = ["Patient", "Psychotic", "Psychosomatic", "Brute", "Historic"]
+
+# --- Fake Bot zum Testen
 def fake_bot():
     seconds = 0
     while True:
@@ -34,18 +34,11 @@ threading.Thread(target=fake_bot, daemon=True).start()
 # --- MJPEG Stream Generator für einen Monitor
 def generate_frames(monitor_index=1):
     sct = mss.mss()
-
-    if monitor_index == 0:
-        # 0 = Ganzer Desktop (alle Monitore zusammen)
-        monitor = sct.monitors[0]
-    else:
-        # Normale Monitorwahl
-        monitor = sct.monitors[monitor_index]
+    monitor = sct.monitors[monitor_index] if monitor_index != 0 else sct.monitors[0]
 
     while True:
         screenshot = np.array(sct.grab(monitor))
         frame = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
-
         ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
         frame_bytes = buffer.tobytes()
 
@@ -66,49 +59,56 @@ def get_monitors():
 # --- Dashboard + Config
 @app.route("/")
 def index():
-    return render_template("dashboard.html", config=load_config(), status=status_data)
+    return render_template("dashboard.html", config=load_config(), status=status_data, teams=TEAM_OPTIONS)
 
 @app.route("/update_config", methods=["POST"])
 def update_config():
-    new_config = request.json
+    try:
+        new_config = request.json
+        if not isinstance(new_config, dict):
+            return jsonify({"success": False, "error": "Ungültige Daten"}), 400
 
-    if "monitors" in new_config:
-        monitors_raw = new_config["monitors"]
+        # Validate team
+        if "team" in new_config and new_config["team"] not in TEAM_OPTIONS:
+            return jsonify({"success": False, "error": "Ungültiges Team"}), 400
 
-        if isinstance(monitors_raw, str):  # Eingabe z.B. "1,2" oder "0"
-            monitors_list = [x.strip() for x in monitors_raw.split(",") if x.strip() != ""]
-            if not monitors_list:  # Leer → keine Monitore
+        # Validate monitors
+        if "monitors" in new_config:
+            monitors_raw = new_config["monitors"]
+            if isinstance(monitors_raw, str):
+                monitors_list = [x.strip() for x in monitors_raw.split(",") if x.strip() != ""]
+                if not monitors_list:
+                    new_config["monitors"] = []
+                elif monitors_list == ["0"]:
+                    new_config["monitors"] = [0]
+                else:
+                    new_config["monitors"] = [int(x) for x in monitors_list if x.isdigit()]
+            elif isinstance(monitors_raw, list):
+                new_config["monitors"] = [int(x) for x in monitors_raw if isinstance(x, int) or str(x).isdigit()]
+            else:
                 new_config["monitors"] = []
-            elif monitors_list == ["0"]:  # Nur 0 → Desktop
-                new_config["monitors"] = [0]
-            else:  # Normale Monitore
-                new_config["monitors"] = [int(x) for x in monitors_list if x.isdigit()]
-        elif isinstance(monitors_raw, list):
-            new_config["monitors"] = [int(x) for x in monitors_raw if isinstance(x, int) or str(x).isdigit()]
-        else:
-            new_config["monitors"] = []
 
-    save_config(new_config)
-    return jsonify({"message": "Config gespeichert", "config": new_config})
+        save_config(new_config)
+        return jsonify({"success": True, "message": "Config gespeichert", "config": new_config})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/pause_toggle", methods=["POST"])
 def pause_toggle():
-    status_data["paused"] = not status_data["paused"]
-    return jsonify({"paused": status_data["paused"]})
+    try:
+        status_data["paused"] = not status_data["paused"]
+        return jsonify({"success": True, "paused": status_data["paused"]})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/stop_script", methods=["POST"])
 def stop_script():
-    status_data["script_running"] = False
-    print("⛔ Stop gedrückt – Prozess wird sofort beendet.")
-    os._exit(0)   # Hartes Beenden, kein Zurück
-
-def shutdown_server():
-    func = request.environ.get("werkzeug.server.shutdown")
-    if func is None:
-        print("⚠️ Konnte Server nicht sauber herunterfahren, erzwinge exit.")
-        sys.exit(0)
-    func()
-    sys.exit(0)
+    try:
+        status_data["script_running"] = False
+        print("⛔ Stop gedrückt – Prozess wird sofort beendet.")
+        os._exit(0)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # --- SSE Event Stream
 @app.route("/status_stream")

@@ -10,7 +10,8 @@ default_config = {
     "send_webhook": False,
     "mention_choice": "0",
     "enable_shutdown": False,
-    "monitors": [1]   # Standard: nur Hauptmonitor
+    "monitors": [1],
+    "team": "Patient"  # NEW
 }
 
 def load_config():
