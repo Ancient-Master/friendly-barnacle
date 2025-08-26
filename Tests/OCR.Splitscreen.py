@@ -62,7 +62,7 @@ def enum_windows():
         if win32gui.IsWindowVisible(hwnd):
             title = win32gui.GetWindowText(hwnd)
             class_name = win32gui.GetClassName(hwnd)
-            if "Roblox" == title:
+            if "Roblox" in title or title.strip() == "Roblox":
                 hwnds.append((hwnd, title, class_name))
     win32gui.EnumWindows(callback, None)
     return hwnds
@@ -84,21 +84,19 @@ def move_window(hwnd, title, monitor_index, pos="left", is_uwp=False):
         time.sleep(0.2)
 
         if is_uwp:
-            # Schritt 1: Fenster erstmal ganz auf Ziel-Monitor verschieben
+            # Schritt 1: ganz auf Monitor
             win32gui.SetWindowPos(
                 hwnd, None, x1, y1, mon_w, mon_h,
                 win32con.SWP_NOZORDER | win32con.SWP_SHOWWINDOW | win32con.SWP_FRAMECHANGED
             )
             time.sleep(0.2)
-
-            # Schritt 2: Exakt in den Split-Screen-Bereich setzen
+            # Schritt 2: Split-Screen
             win32gui.SetWindowPos(
                 hwnd, None, target_x, target_y, w, h,
                 win32con.SWP_NOZORDER | win32con.SWP_SHOWWINDOW | win32con.SWP_FRAMECHANGED
             )
             print(f"✅ UWP '{title}' → {pos} auf Monitor {monitor_index} ({w}x{h})")
         else:
-            # Classic Roblox Player
             win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
             time.sleep(0.2)
             win32gui.SetWindowPos(
@@ -106,9 +104,31 @@ def move_window(hwnd, title, monitor_index, pos="left", is_uwp=False):
                 win32con.SWP_NOZORDER | win32con.SWP_SHOWWINDOW
             )
             print(f"✅ Player '{title}' → {pos} auf Monitor {monitor_index} ({w}x{h})")
-
     except Exception as e:
         print(f"⚠️ Fehler beim Verschieben '{title}': {e}")
+
+def is_in_split(hwnd, pos, monitor_index=0):
+    """Prüfen ob Fenster schon im Splitscreen sitzt"""
+    monitors = win32api.EnumDisplayMonitors()
+    mon_info = win32api.GetMonitorInfo(monitors[monitor_index][0])
+    x1, y1, x2, y2 = mon_info["Monitor"]
+    mon_w, mon_h = x2 - x1, y2 - y1
+    half_w = mon_w // 2
+
+    if pos == "left":
+        target_x, target_y, w, h = x1, y1, half_w, mon_h
+    else:
+        target_x, target_y, w, h = x1 + half_w, y1, half_w, mon_h
+
+    cur_x1, cur_y1, cur_x2, cur_y2 = win32gui.GetWindowRect(hwnd)
+    cur_w, cur_h = cur_x2 - cur_x1, cur_y2 - cur_y1
+
+    return (
+        abs(cur_x1 - target_x) < 10 and
+        abs(cur_y1 - target_y) < 10 and
+        abs(cur_w - w) < 20 and
+        abs(cur_h - h) < 20
+    )
 
 # ---------------- Screenshot vom Roblox Fenster ----------------
 def screenshot_hwnd(hwnd):
@@ -118,7 +138,7 @@ def screenshot_hwnd(hwnd):
     img = pyautogui.screenshot(region=(x1, y1, w, h))
     return np.array(img), (x1, y1)
 
-# ---------------- Patient finden ----------------
+# ---------------- Patient finden (Multi-Scale) ----------------
 def find_patient(hwnd, template_filename="patient_template.png"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(script_dir, template_filename)
@@ -126,32 +146,36 @@ def find_patient(hwnd, template_filename="patient_template.png"):
     img, offset = screenshot_hwnd(hwnd)
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    template = cv2.imread(template_path, cv2.IMREAD_UNCHANGED)
+    template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
     if template is None:
         print(f"❌ Template konnte nicht geladen werden: {template_path}")
         return None
 
-    if len(template.shape) == 3 and template.shape[2] == 4:
-        template = cv2.cvtColor(template, cv2.COLOR_BGRA2GRAY)
-    elif len(template.shape) == 3:
-        template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+    best_val, best_loc, th, tw, best_scale = 0, None, 0, 0, 1.0
 
-    th, tw = template.shape[:2]
-    res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
-    _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    for scale in np.linspace(0.8, 1.2, 9):  # 80% bis 120%
+        resized = cv2.resize(template, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        rh, rw = resized.shape[:2]
+        if rh > img_gray.shape[0] or rw > img_gray.shape[1]:
+            continue
 
-    print(f"🔍 Match Score: {max_val:.3f}")
-    if max_val < 0.6:
+        res = cv2.matchTemplate(img_gray, resized, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(res)
+
+        if max_val > best_val:
+            best_val, best_loc, th, tw, best_scale = max_val, max_loc, rh, rw, scale
+
+    print(f"🔍 Best Match: {best_val:.3f} @ scale {best_scale:.2f}")
+    if best_val < 0.45:
         print("❌ Patient nicht gefunden")
         return None
 
-    top_left = max_loc
+    top_left = best_loc
     bottom_right = (top_left[0] + tw, top_left[1] + th)
 
     cropped = img[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
     cv2.imwrite(os.path.join(script_dir, "debug_patient_box.png"), cropped)
 
-    # Klickposition = untere Mitte der Box
     cx = offset[0] + (top_left[0] + tw // 2)
     cy = offset[1] + (top_left[1] + int(th * 0.85))
 
@@ -175,8 +199,14 @@ def main():
         print("❌ Konnte UWP oder Player nicht eindeutig finden")
         return
 
-    move_window(uwp_hwnd, "Roblox UWP", monitor_index=0, pos="left", is_uwp=True)
-    move_window(player_hwnd, "Roblox Player", monitor_index=0, pos="right", is_uwp=False)
+    uwp_ok = is_in_split(uwp_hwnd, "left")
+    player_ok = is_in_split(player_hwnd, "right")
+
+    if uwp_ok and player_ok:
+        print("⏭️ Beide Roblox Fenster schon im Split-Screen → überspringe Verschieben")
+    else:
+        move_window(uwp_hwnd, "Roblox UWP", monitor_index=0, pos="left", is_uwp=True)
+        move_window(player_hwnd, "Roblox Player", monitor_index=0, pos="right", is_uwp=False)
 
     time.sleep(2)
 
